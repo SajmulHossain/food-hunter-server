@@ -11,7 +11,7 @@ const port = process.env.port || 3000;
 app.use(
   cors({
     origin: ["http://localhost:5173"],
-    credentials: true
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -43,7 +43,18 @@ async function run() {
           secure: process.env.NODE_ENV === "production",
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
         })
-        .send({ success: true , token});
+        .send({ success: true, token });
+    });
+
+    // clear cookie when logout
+    app.get("/logout", async (req, res) => {
+      res
+        .clearCookie("token", {
+          maxAge: 0,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
     });
 
     // food get post put
@@ -59,10 +70,37 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/foods/:id", async (req, res) => {
+    app.get("/food/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await foodCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.get("/foods/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { donatorEmail: email };
+      const result = await foodCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.delete("/food/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await foodCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.put("/food/update/:id", async (req, res) => {
+      const id = req.params.id;
+      const data = req.body;
+      const option = { upsert: true };
+      const query = { _id: new ObjectId(id) };
+      const updatedData = {
+        $set: data,
+      };
+
+      const result = await foodCollection.updateOne(query, updatedData, option);
       res.send(result);
     });
 
