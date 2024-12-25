@@ -126,6 +126,7 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await foodCollection.deleteOne(query);
+      const deleteRequest = await requestCollection.deleteOne({jobId: id})
       res.send(result);
     });
 
@@ -155,14 +156,17 @@ async function run() {
       const query = { userEmail: queryEmail };
       const requests = await requestCollection.find(query).toArray();
 
-      for(const request of request ) {
-        const query = { _id: new ObjectId(request.foodId)}
-        const food = await foodCollection.findOne(query);
+      if(requests.length) {
+        for (const request of requests) {
+          const query = { _id: new ObjectId(request.foodId) };
+          const food = await foodCollection.findOne(query);
 
-        if(food) {
-          request.donatorName = food.donatorName;
-          request.expiredDate = food.expiredDate;
-          request.location = food.location;
+          if (food) {
+            request.donatorName = food.donatorName;
+            request.expiredDate = food.expiredDate;
+            request.location = food.location;
+            request.foodName = food.foodName;
+          }
         }
       }
 
