@@ -13,7 +13,11 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://192.168.0.105:5173"],
+    origin: [
+      "http://localhost:5173",
+      "http://192.168.0.105:5173",
+      "https://ph-assignment-11-sajmul.web.app",
+    ],
     credentials: true,
   })
 );
@@ -47,6 +51,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const foodCollection = client.db("foodDB").collection("foods");
+    const requestCollection = client.db("foodDB").collection("request");
 
     // token related api
 
@@ -78,7 +83,8 @@ async function run() {
     // food get post put
 
     app.get("/foods", async (req, res) => {
-      const result = await foodCollection.find().toArray();
+      const query = { status: "Available" };
+      const result = await foodCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -100,6 +106,8 @@ async function run() {
       const result = await foodCollection.findOne(query);
       res.send(result);
     });
+
+    
 
     app.get("/foods/:email",verifyToeken, async (req, res) => {
       const decodedEmail = req.user?.email;
@@ -132,6 +140,49 @@ async function run() {
 
       const result = await foodCollection.updateOne(query, updatedData, option);
       res.send(result);
+    });
+
+
+    // request food related api
+    app.get('/requests', verifyToeken, async(req, res) => {
+      const decodedEmail = req.user.email;
+      const queryEmail = req.query.email;
+
+      if(decodedEmail !== queryEmail) {
+        return res.status(403).send({message: 'unauthorized access'});
+      }
+
+      const query = { userEmail: queryEmail };
+      const requests = await requestCollection.find(query).toArray();
+
+      for(const request of request ) {
+        const query = { _id: new ObjectId(request.foodId)}
+        const food = await foodCollection.findOne(query);
+
+        if(food) {
+          request.donatorName = food.donatorName;
+          request.expiredDate = food.expiredDate;
+          request.location = food.location;
+        }
+      }
+
+      res.send(requests);
+    })
+
+    app.post("/food/:id", verifyToeken, async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+
+      const updatedStatus = {
+        $set: {
+          status: "Requested",
+        },
+      };
+      const result = await foodCollection.updateOne(query, updatedStatus);
+
+      const data = req.body;
+      const result2 = await requestCollection.insertOne(data);
+      res.send({ result, result2 });
     });
 
     await client.connect();
