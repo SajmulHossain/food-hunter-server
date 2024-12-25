@@ -2,19 +2,37 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const cookieParser = require('cookie-parser');
 
 require("dotenv").config();
 
 const app = express();
 const port = process.env.port || 3000;
 
+app.use(express.json());
+app.use(cookieParser());
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: ["http://localhost:5173", "http://192.168.0.105:5173"],
     credentials: true,
   })
 );
-app.use(express.json());
+
+
+const verifyToeken = (req, res, next) => {
+  const token = req.cookies?.token;
+  if(!token) return res.status(401).send({message: 'unauthorized access'})
+
+    jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+      if(err) {
+        return res.status(401).send({message: 'unauthorized access'});
+      }
+      
+      req.user = decoded;
+    })
+
+  next();
+};
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.saftd.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -64,6 +82,12 @@ async function run() {
       res.send(result);
     });
 
+    app.get('/featuredFood', async(req, res) => {
+      const size = parseInt(req.query.size);
+      const result = await foodCollection.find().sort({quantity: -1}).limit(size).toArray();
+      res.send(result);
+    })
+
     app.post("/foods", async (req, res) => {
       const data = req.body;
       const result = await foodCollection.insertOne(data);
@@ -77,8 +101,14 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/foods/:email", async (req, res) => {
+    app.get("/foods/:email",verifyToeken, async (req, res) => {
+      const decodedEmail = req.user?.email;
       const email = req.params.email;
+
+      if(decodedEmail !== email) {
+        return res.status(403).send({message: 'forbidden'});
+      }
+
       const query = { donatorEmail: email };
       const result = await foodCollection.find(query).toArray();
       res.send(result);
