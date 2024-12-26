@@ -109,8 +109,9 @@ async function run() {
 
     app.get("/featuredFood", async (req, res) => {
       const size = parseInt(req.query.size);
+      const query = { status: "Available" };
       const result = await foodCollection
-        .find()
+        .find(query)
         .sort({ quantity: -1 })
         .limit(size)
         .toArray();
