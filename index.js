@@ -2,7 +2,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const cookieParser = require('cookie-parser');
+const cookieParser = require("cookie-parser");
 
 require("dotenv").config();
 
@@ -22,18 +22,17 @@ app.use(
   })
 );
 
-
 const verifyToeken = (req, res, next) => {
   const token = req.cookies?.token;
-  if(!token) return res.status(401).send({message: 'unauthorized access'})
+  if (!token) return res.status(401).send({ message: "unauthorized access" });
 
-    jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
-      if(err) {
-        return res.status(401).send({message: 'unauthorized access'});
-      }
-      
-      req.user = decoded;
-    })
+  jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+
+    req.user = decoded;
+  });
 
   next();
 };
@@ -83,16 +82,39 @@ async function run() {
     // food get post put
 
     app.get("/foods", async (req, res) => {
-      const query = { status: "Available" };
-      const result = await foodCollection.find(query).toArray();
+      const search = req.query.search;
+      const sort = req.query.sort;
+      let query = {
+        status: "Available",
+        
+      };
+
+      if(search) {
+        query.foodName = { $regex: search, $options: "i" }
+      }
+
+      let sortQuery = {};
+      if(sort && sort === 'asc') {
+        sortQuery = { expiredDate: 1};
+      } else if(sort && sort === 'dsc') {
+        sortQuery = { expiredDate : -1}
+      } else {
+        sortQuery = {};
+      }
+
+      const result = await foodCollection.find(query).sort(sortQuery).toArray();
       res.send(result);
     });
 
-    app.get('/featuredFood', async(req, res) => {
+    app.get("/featuredFood", async (req, res) => {
       const size = parseInt(req.query.size);
-      const result = await foodCollection.find().sort({quantity: -1}).limit(size).toArray();
+      const result = await foodCollection
+        .find()
+        .sort({ quantity: -1 })
+        .limit(size)
+        .toArray();
       res.send(result);
-    })
+    });
 
     app.post("/foods", async (req, res) => {
       const data = req.body;
@@ -107,14 +129,12 @@ async function run() {
       res.send(result);
     });
 
-    
-
-    app.get("/foods/:email",verifyToeken, async (req, res) => {
-      const decodedEmail = req.user?.email;
+    app.get("/foods/:email", verifyToeken, async (req, res) => {
+      const decodedEmail = req?.user?.email;
       const email = req.params.email;
 
-      if(decodedEmail !== email) {
-        return res.status(403).send({message: 'forbidden'});
+      if (decodedEmail !== email) {
+        return res.status(403).send({ message: "forbidden" });
       }
 
       const query = { donatorEmail: email };
@@ -126,7 +146,7 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await foodCollection.deleteOne(query);
-      const deleteRequest = await requestCollection.deleteOne({jobId: id})
+      const deleteRequest = await requestCollection.deleteOne({ jobId: id });
       res.send(result);
     });
 
@@ -143,20 +163,19 @@ async function run() {
       res.send(result);
     });
 
-
     // request food related api
-    app.get('/requests', verifyToeken, async(req, res) => {
-      const decodedEmail = req.user.email;
+    app.get("/requests", verifyToeken, async (req, res) => {
+      const decodedEmail = req?.user?.email;
       const queryEmail = req.query.email;
 
-      if(decodedEmail !== queryEmail) {
-        return res.status(403).send({message: 'unauthorized access'});
+      if (decodedEmail !== queryEmail) {
+        return res.status(403).send({ message: "unauthorized access" });
       }
 
       const query = { userEmail: queryEmail };
       const requests = await requestCollection.find(query).toArray();
 
-      if(requests.length) {
+      if (requests.length) {
         for (const request of requests) {
           const query = { _id: new ObjectId(request.foodId) };
           const food = await foodCollection.findOne(query);
@@ -171,7 +190,7 @@ async function run() {
       }
 
       res.send(requests);
-    })
+    });
 
     app.post("/food/:id", verifyToeken, async (req, res) => {
       const id = req.params.id;
