@@ -152,7 +152,7 @@ async function run() {
       res.send(result);
     });
 
-    app.put("/food/update/:id", verifyToken, async (req, res) => {
+    app.put("/food/update/:id",  async (req, res) => {
       const id = req.params.id;
       const data = req.body;
       const option = { upsert: true };
