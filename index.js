@@ -16,6 +16,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "https://ph-assignment-11-sajmul.web.app",
+      "https://ph-assignment-11-sajmul.firebaseapp.com",
     ],
     credentials: true,
     optionsSuccessStatus: 200,
